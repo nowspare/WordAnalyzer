@@ -1,2 +1,15 @@
-
-hello
+WordAnalyzer/
+├── index.html
+├── style.css
+├── script.js
+├── css/
+│   ├── components.css
+│   ├── 3d-effects.css
+│   ├── animations.css
+│   └── responsive.css
+└── js/
+    ├── utilities.js
+    ├── three-scene.js
+    ├── upload-manager.js
+    ├── dashboard.js
+    └── animations.js
