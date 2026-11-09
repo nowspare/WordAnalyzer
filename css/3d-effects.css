@@ -1,1 +1,200 @@
+/* ============================================================
+   3D depth, logo, tilt cards, charts, word cloud
+   ============================================================ */
 
+/* ---------- LOGO ORB ---------- */
+.logo-orb{
+  width:42px;height:42px;position:relative;
+  perspective:300px;flex-shrink:0;
+}
+.logo-orb span{
+  position:absolute;inset:0;border-radius:50%;
+  border:1.5px solid transparent;
+  transform-style:preserve-3d;
+}
+.logo-orb span:nth-child(1){
+  border-top-color:var(--neon-cyan);
+  border-right-color:rgba(79,240,224,.18);
+  animation:orbSpin1 4.5s linear infinite;
+}
+.logo-orb span:nth-child(2){
+  inset:5px;
+  border-bottom-color:var(--neon-blue);
+  border-left-color:rgba(77,163,255,.18);
+  animation:orbSpin2 5.8s linear infinite reverse;
+}
+.logo-orb span:nth-child(3){
+  inset:10px;
+  border-top-color:var(--neon-purple);
+  animation:orbSpin3 3.6s linear infinite;
+}
+.logo-core{
+  position:absolute;inset:17px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,var(--neon-cyan),var(--neon-blue) 55%,transparent 72%);
+  box-shadow:0 0 18px rgba(77,163,255,.65),0 0 36px rgba(79,240,224,.28);
+  animation:corePulse 3s ease-in-out infinite;
+}
+@keyframes orbSpin1{from{transform:rotateX(62deg) rotateY(0) rotateZ(0);}to{transform:rotateX(62deg) rotateY(360deg) rotateZ(0);}}
+@keyframes orbSpin2{from{transform:rotateX(-38deg) rotateY(0);}to{transform:rotateX(-38deg) rotateY(-360deg);}}
+@keyframes orbSpin3{from{transform:rotateY(72deg) rotateZ(0);}to{transform:rotateY(72deg) rotateZ(360deg);}}
+@keyframes corePulse{0%,100%{transform:scale(1);opacity:.9;}50%{transform:scale(1.14);opacity:1;}}
+
+/* ---------- TILT CARDS ---------- */
+.tilt{
+  transform-style:preserve-3d;
+  transform:perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateZ(0);
+  transition:transform .18s ease-out,box-shadow .25s;
+  will-change:transform;
+  position:relative;
+}
+.tilt::after{
+  content:"";
+  position:absolute;inset:0;border-radius:inherit;
+  pointer-events:none;
+  background:radial-gradient(360px circle at var(--mx,50%) var(--my,50%),rgba(120,190,255,.14),transparent 45%);
+  opacity:0;transition:opacity .22s;
+}
+.tilt:hover::after{opacity:1;}
+
+/* ---------- DASHBOARD CARDS ---------- */
+.dash-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(168px,1fr));
+  gap:12px;padding:14px 20px 6px;
+  overflow:auto;min-height:0;
+}
+.dash-card{
+  position:relative;
+  padding:16px 16px 14px;
+  border-radius:15px;
+  background:linear-gradient(145deg,rgba(20,30,52,.62),rgba(10,16,30,.48));
+  border:1px solid var(--stroke);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    0 14px 32px rgba(0,0,0,.35);
+  display:flex;flex-direction:column;gap:7px;
+  overflow:hidden;
+  transform-style:preserve-3d;
+  transition:transform .18s ease-out,box-shadow .25s,border-color .25s;
+}
+[data-theme="light"] .dash-card{background:linear-gradient(145deg,rgba(255,255,255,.78),rgba(235,244,255,.62));}
+.dash-card::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(120,190,255,.55),transparent);
+}
+.dash-card:hover{
+  border-color:rgba(77,163,255,.35);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 20px 46px rgba(0,0,0,.45),0 0 32px rgba(77,163,255,.14);
+}
+.dash-label{
+  font-size:9.8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);
+  display:flex;align-items:center;gap:6px;
+}
+.dash-label i{
+  width:6px;height:6px;border-radius:50%;flex-shrink:0;
+  background:var(--neon-cyan);box-shadow:0 0 8px var(--neon-cyan);
+}
+.dash-value{
+  font-size:25px;font-weight:800;letter-spacing:-.02em;
+  color:var(--text);font-variant-numeric:tabular-nums;
+  line-height:1.05;word-break:break-word;
+}
+.dash-value.small{font-size:17px;line-height:1.25;}
+.dash-sub{font-size:10.5px;color:var(--muted);font-weight:600;}
+.dash-spark{
+  position:absolute;right:12px;bottom:10px;
+  width:56px;height:22px;opacity:.55;
+}
+
+/* ---------- CHART ROW ---------- */
+.chart-row{
+  display:grid;grid-template-columns:1fr 1fr;gap:12px;
+  padding:8px 20px 20px;
+  overflow:auto;min-height:0;
+}
+.chart-card{
+  padding:16px;border-radius:var(--radius);
+  min-width:0;
+}
+.chart-card h3{
+  font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:12px;
+}
+.chart-card canvas{width:100%;height:auto;display:block;}
+
+/* ---------- LETTER DONUT ---------- */
+#letterDonut{width:100%;max-width:340px;height:auto;display:block;margin:0 auto 14px;}
+
+/* ---------- 3D WORD CLOUD ---------- */
+.word-cloud-3d{
+  position:relative;
+  display:flex;flex-wrap:wrap;
+  align-items:center;justify-content:center;
+  gap:12px 16px;
+  min-height:180px;
+  margin:14px 20px;
+  padding:22px 18px;
+  border-radius:var(--radius);
+  background:
+    radial-gradient(600px 220px at 50% 0%,rgba(77,163,255,.10),transparent 70%),
+    rgba(6,10,20,.35);
+  border:1px solid var(--stroke);
+  perspective:800px;
+  overflow:hidden;
+}
+[data-theme="light"] .word-cloud-3d{background:rgba(235,244,255,.45);}
+.wc-word{
+  font-family:inherit;
+  font-weight:800;
+  letter-spacing:-.01em;
+  padding:3px 7px;
+  border-radius:8px;
+  cursor:pointer;
+  color:var(--wc-color,var(--neon-cyan));
+  text-shadow:0 0 16px currentColor;
+  transform:
+    translateZ(var(--z,0px))
+    rotateY(var(--ry,0deg))
+    rotateX(var(--rx,0deg));
+  transition:transform .28s cubic-bezier(.22,.8,.35,1),filter .2s;
+  animation:floatWord 7s ease-in-out infinite;
+  animation-delay:var(--d,0s);
+  white-space:nowrap;
+  will-change:transform;
+  opacity:.92;
+}
+.wc-word:hover{
+  transform:translateZ(42px) scale(1.12) rotateY(0) rotateX(0);
+  filter:brightness(1.3);
+  opacity:1;
+  z-index:5;
+}
+@keyframes floatWord{
+  0%,100%{transform:translateZ(var(--z,0px)) translateY(0) rotateY(var(--ry,0deg));}
+  50%{transform:translateZ(var(--z,0px)) translateY(-8px) rotateY(var(--ry,0deg));}
+}
+
+/* ---------- BUTTON DEPTH ---------- */
+.btn{transform:translateZ(0);}
+.btn::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;
+  background:linear-gradient(180deg,rgba(255,255,255,.10),transparent 45%);
+  pointer-events:none;
+}
+
+/* ---------- SIDEBAR OVERLAY (mobile) ---------- */
+.sidebar-overlay{
+  position:fixed;inset:0;z-index:25;
+  background:rgba(2,5,12,.6);
+  -webkit-backdrop-filter:blur(3px);
+  backdrop-filter:blur(3px);
+  animation:fadeIn .22s ease;
+}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+
+/* ---------- REDUCED MOTION ---------- */
+@media (prefers-reduced-motion: reduce){
+  .logo-orb span,.logo-core,.dz-cube,.wc-word,.ur-fill::after{animation:none !important;}
+  .tilt{transition:none;}
+}
