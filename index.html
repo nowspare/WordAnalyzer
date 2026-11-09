@@ -20,17 +20,10 @@
     <span>Universal Text Analyzer</span>
   </div>
   <div class="header-actions">
-    <button id="btnUpload" class="btn btn-primary">
-      <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 3l4 4h-3v6h-2V7H8l4-4zM5 18h14v2H5z"/></svg>
-      Upload Files
-    </button>
-    <button id="btnFocusSearch" class="btn">
-      <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></svg>
-      Search
-    </button>
-    <button id="btnTheme" class="btn icon-btn" title="Toggle theme">
-      <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></svg>
-    </button>
+    <button id="btnUpload" class="btn btn-primary">Upload Files</button>
+    <button id="btnFocusSearch" class="btn">Search</button>
+    <button id="btnDebug" class="btn" title="Toggle debug log">Debug</button>
+    <button id="btnTheme" class="btn icon-btn" title="Toggle theme">Theme</button>
   </div>
 </header>
 
@@ -90,24 +83,23 @@
       <section id="viewEditor" class="view">
         <div class="viewer-toolbar">
           <div class="search-bar">
-            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></svg>
             <input type="text" id="quickSearch" placeholder="Search in documents…">
             <span class="match-counter" id="quickCounter">0 results</span>
-            <button class="tool-btn" id="qPrev" title="Previous">&#8249;</button>
-            <button class="tool-btn" id="qNext" title="Next">&#8250;</button>
-            <button class="tool-btn" id="qClear" title="Clear">&#10005;</button>
+            <button class="tool-btn" id="qPrev">&#8249;</button>
+            <button class="tool-btn" id="qNext">&#8250;</button>
+            <button class="tool-btn" id="qClear">&#10005;</button>
           </div>
           <div class="toolbar-tools">
-            <button class="tool-btn" id="btnUndo" title="Undo">&#8630; Undo</button>
-            <button class="tool-btn" id="btnRedo" title="Redo">Redo &#8631;</button>
-            <button class="tool-btn" id="btnCopy" title="Copy">Copy</button>
-            <button class="tool-btn" id="btnCut" title="Cut">Cut</button>
-            <button class="tool-btn" id="btnPaste" title="Paste">Paste</button>
-            <button class="tool-btn" id="btnSelectAll" title="Select All">All</button>
-            <button class="tool-btn" id="btnClearText" title="Clear">Clear</button>
-            <button class="tool-btn" id="btnWrap" title="Word wrap">Wrap</button>
-            <button class="tool-btn active" id="btnLines" title="Line numbers">Lines</button>
-            <button class="tool-btn active" id="btnHighlightAll" title="Highlight all">Highlight</button>
+            <button class="tool-btn" id="btnUndo">Undo</button>
+            <button class="tool-btn" id="btnRedo">Redo</button>
+            <button class="tool-btn" id="btnCopy">Copy</button>
+            <button class="tool-btn" id="btnCut">Cut</button>
+            <button class="tool-btn" id="btnPaste">Paste</button>
+            <button class="tool-btn" id="btnSelectAll">All</button>
+            <button class="tool-btn" id="btnClearText">Clear</button>
+            <button class="tool-btn" id="btnWrap">Wrap</button>
+            <button class="tool-btn active" id="btnLines">Lines</button>
+            <button class="tool-btn active" id="btnHighlightAll">Highlight</button>
           </div>
         </div>
 
@@ -134,14 +126,8 @@
           <div class="scope-switch" data-scope="replace"></div>
         </div>
         <div class="panel-card">
-          <div class="field-row">
-            <label>Find</label>
-            <input type="text" id="frFind" placeholder="Text to find">
-          </div>
-          <div class="field-row">
-            <label>Replace with</label>
-            <input type="text" id="frReplace" placeholder="Replacement text">
-          </div>
+          <div class="field-row"><label>Find</label><input type="text" id="frFind"></div>
+          <div class="field-row"><label>Replace with</label><input type="text" id="frReplace"></div>
           <div class="opt-row">
             <label class="mini-check"><input type="checkbox" id="frCase"><span>Case sensitive</span></label>
             <label class="mini-check"><input type="checkbox" id="frWord"><span>Whole word</span></label>
@@ -271,6 +257,12 @@
         <button class="btn small" data-export="report">Analysis Report (TXT)</button>
         <button class="btn small btn-primary" data-export="pdf">Generate New PDF</button>
       </div>
+    </div>
+
+    <div class="side-section">
+      <div class="side-title">Debug</div>
+      <button class="btn small" id="btnSelfTest">Run Self-Test</button>
+      <div id="debugLog" class="debug-log"></div>
     </div>
 
     <div class="side-section">
