@@ -2,12 +2,9 @@
    Universal Text Analyzer — fixed build
    ============================================================ */
 
-/* ---------- LIBRARY GUARDS ---------- */
 if (typeof pdfjsLib !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc =
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-} else {
-  console.warn('pdf.js not loaded — PDF extraction unavailable');
 }
 
 /* ---------- STATE ---------- */
@@ -52,6 +49,7 @@ const debounce = (fn, ms=250) => { let t; return (...a) => { clearTimeout(t); t 
 const rafThrottle = fn => { let queued = false; return (...a) => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; fn(...a); }); }; };
 
 function toast(msg, kind='') {
+  console.log('[toast]', kind, msg);
   const el = document.createElement('div');
   el.className = 'toast ' + kind;
   el.textContent = msg;
@@ -85,6 +83,7 @@ const ACCEPTED = ['pdf','jpg','jpeg','png','webp','gif','txt','csv','docx','xlsx
 function addFiles(fileList) {
   const incoming = Array.from(fileList);
   if (!incoming.length) return;
+  console.log('[addFiles] adding', incoming.length, 'file(s)');
 
   for (const raw of incoming) {
     const ext = extOf(raw.name);
@@ -106,15 +105,20 @@ function addFiles(fileList) {
       charCount: 0
     };
     state.files.push(obj);
+    console.log('[addFiles] queued:', raw.name, '(' + ext + ')', ok ? 'OK' : 'unsupported');
   }
-  if (!state.activeId && state.files.length) state.activeId = state.files[0].id;
+  if (!state.activeId && state.files.length) {
+    state.activeId = state.files[0].id;
+    console.log('[addFiles] activeId set to first file:', state.files[0].name);
+  }
 
   renderFileList();
   updateCounts();
   updateCenterVisibility();
   renderEditor();
   refreshViews();
-  processAll();
+  // Give DOM a tick before kicking off async processing
+  setTimeout(processAll, 0);
 }
 
 function fileKind(f) {
@@ -135,14 +139,16 @@ function filesInScope(scope = state.scope) {
   if (scope === 'selected') {
     return state.files.filter(f => state.selected.has(f.id));
   }
-  return state.files.filter(f => f.status === 'done' || f.text);
+  // all: include files that have text, regardless of status
+  return state.files.filter(f => f.text);
 }
 
 /* ---------- PROCESSING ---------- */
 let processing = false;
 async function processAll() {
-  if (processing) return;
+  if (processing) { console.log('[processAll] already running, skip'); return; }
   processing = true;
+  console.log('[processAll] start, files:', state.files.length);
   try {
     for (const f of state.files.slice()) {
       if (!state.files.includes(f)) continue;
@@ -152,12 +158,14 @@ async function processAll() {
     }
   } finally {
     processing = false;
+    console.log('[processAll] done');
   }
 }
 
 const scheduleFileListRender = rafThrottle(() => renderFileList());
 
 async function processFile(f) {
+  console.log('[processFile] START', f.name, '(' + f.ext + ')');
   f.status = 'processing'; f.error = null; f.progress = 0;
   scheduleFileListRender();
   try {
@@ -171,7 +179,7 @@ async function processFile(f) {
       text = await extractImage(f);
     }
     else if (f.ext === 'docx') {
-      if (typeof mammoth === 'undefined') throw new Error('DOCX library not loaded');
+      if (typeof mammoth === 'undefined') throw new Error('DOCX library not loaded (mammoth)');
       text = await extractDOCX(f);
     }
     else if (['xlsx','xls'].includes(f.ext)) {
@@ -182,10 +190,13 @@ async function processFile(f) {
       if (typeof JSZip === 'undefined') throw new Error('ZIP library not loaded');
       text = await extractPPTX(f);
     }
-    else text = await extractPlain(f);
+    else {
+      text = await extractPlain(f);
+    }
 
+    console.log('[processFile]', f.name, 'extracted length:', text.length);
     f.text = text || '';
-    f.wordCount = (f.text.match(/[\p{L}\p{N}_'-]+/gu) || []).length;
+    f.wordCount = countWords(f.text);
     f.charCount = f.text.length;
 
     if (!f.text.trim()) {
@@ -193,27 +204,52 @@ async function processFile(f) {
       f.error = f.ext === 'pdf' ? 'No selectable text (image-only PDF)' :
                 fileKind(f) === 'image' ? 'No text detected by OCR' :
                 'No readable text found';
+      console.warn('[processFile]', f.name, 'empty text —', f.error);
     } else {
       f.status = 'done';
+      console.log('[processFile]', f.name, 'DONE:', f.wordCount, 'words,', f.charCount, 'chars');
     }
   } catch (err) {
     f.status = 'error';
     f.error = (err && err.message) ? err.message : 'Processing failed';
+    console.error('[processFile]', f.name, 'ERROR:', err);
   }
   f.progress = 100;
+
+  // Re-render everything that depends on file text
   renderFileList();
   updateCounts();
   updateCenterVisibility();
   if (state.activeId === f.id) renderEditor();
   refreshViews();
+  console.log('[processFile] END', f.name, 'status:', f.status);
+}
+
+/* Robust word count that never silently fails */
+function countWords(text) {
+  if (!text) return 0;
+  try {
+    const m = text.match(/[\p{L}\p{N}_'-]+/gu);
+    if (m) return m.length;
+  } catch (e) {
+    console.warn('[countWords] unicode regex failed, falling back to split');
+  }
+  // Fallback: split on whitespace and count non-empty
+  return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
 /* ---------- EXTRACTORS ---------- */
-async function extractPlain(f) { return await f.raw.text(); }
+async function extractPlain(f) {
+  const t = await f.raw.text();
+  console.log('[extractPlain]', f.name, '->', t.length, 'chars');
+  return t;
+}
 
 async function extractDOCX(f) {
   const buf = await f.raw.arrayBuffer();
+  console.log('[extractDOCX]', f.name, 'buffer bytes:', buf.byteLength);
   const res = await mammoth.extractRawText({ arrayBuffer: buf });
+  console.log('[extractDOCX]', f.name, '->', (res.value||'').length, 'chars');
   return res.value || '';
 }
 
@@ -225,7 +261,9 @@ async function extractXLSX(f) {
     out.push('=== Sheet: ' + name + ' ===');
     out.push(XLSX.utils.sheet_to_csv(wb.Sheets[name]));
   });
-  return out.join('\n');
+  const text = out.join('\n');
+  console.log('[extractXLSX]', f.name, '->', text.length, 'chars from', wb.SheetNames.length, 'sheets');
+  return text;
 }
 
 async function extractPPTX(f) {
@@ -250,7 +288,9 @@ async function extractPPTX(f) {
     }
     parts.push(`--- Slide ${i+1} ---\n` + texts.join('\n'));
   }
-  return parts.join('\n\n');
+  const text = parts.join('\n\n');
+  console.log('[extractPPTX]', f.name, '->', text.length, 'chars from', slideNames.length, 'slides');
+  return text;
 }
 
 async function extractPDF(f) {
@@ -260,10 +300,12 @@ async function extractPDF(f) {
     pdf = await pdfjsLib.getDocument({ data: buf }).promise;
   } catch (e) {
     if (/password/i.test(e.message || '')) throw new Error('Password-protected PDF');
-    throw new Error('Corrupted or unreadable PDF');
+    throw new Error('Corrupted or unreadable PDF: ' + (e.message || 'unknown'));
   }
 
   f.pages = pdf.numPages;
+  console.log('[extractPDF]', f.name, 'pages:', pdf.numPages);
+
   const pageTexts = [];
   let emptyPages = 0;
 
@@ -281,8 +323,11 @@ async function extractPDF(f) {
     scheduleFileListRender();
   }
 
+  console.log('[extractPDF]', f.name, 'empty pages:', emptyPages, '/', pdf.numPages);
+
   if (emptyPages === pdf.numPages && typeof Tesseract !== 'undefined') {
     toast('Scanned PDF — running OCR (may take a while)…');
+    console.log('[extractPDF]', f.name, 'starting OCR');
     const ocrTexts = [];
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
@@ -328,6 +373,8 @@ async function extractImage(f) {
   canvas.getContext('2d').drawImage(img, 0, 0, w, h);
   URL.revokeObjectURL(url);
 
+  console.log('[extractImage]', f.name, 'rendered to', w, 'x', h);
+
   const { data } = await Tesseract.recognize(canvas, 'eng', {
     logger: m => {
       if (m.status === 'recognizing text') {
@@ -337,6 +384,7 @@ async function extractImage(f) {
     }
   });
   f.ocrConfidence = data.confidence;
+  console.log('[extractImage]', f.name, 'OCR confidence:', data.confidence, 'text length:', (data.text||'').length);
   return (data.text || '').trim();
 }
 
@@ -345,21 +393,22 @@ async function extractImage(f) {
    ============================================================ */
 function renderFileList() {
   const list = $('#fileList');
+  if (!list) return;
   const filter = state.filter;
   const visible = state.files.filter(f => filter === 'all' || fileKind(f) === filter);
 
   list.innerHTML = visible.map(f => {
     const selected = state.selected.has(f.id);
     const active = state.activeId === f.id;
-    const st = { pending:'Pending', processing:'Processing…', done:'Done', error:'Error' }[f.status];
+    const st = { pending:'Pending', processing:'Processing…', done:'Done', error:'Error' }[f.status] || f.status;
     const showProgress = f.status === 'processing';
     return `
       <li class="file-item ${active?'active':''} ${selected?'selected':''}" data-id="${f.id}">
         <div class="file-name">${escapeHtml(f.name)}</div>
         <div class="file-meta">
-          <span>${f.ext.toUpperCase()||'?'}</span>
+          <span>${(f.ext||'?').toUpperCase()}</span>
           <span>${fmtSize(f.size)}</span>
-          <span>${f.wordCount} words</span>
+          <span><strong>${f.wordCount}</strong> words</span>
           <span>${f.charCount} chars</span>
         </div>
         <div class="file-status status-${f.status}">${st}${f.ocrConfidence!=null?' · OCR '+Math.round(f.ocrConfidence)+'%':''}${f.error?' · '+escapeHtml(f.error):''}</div>
@@ -404,9 +453,9 @@ function renderFileList() {
     });
   });
 
-  // keep "select all" checkbox in sync
   const allChecked = state.files.length > 0 && state.files.every(f => state.selected.has(f.id));
-  $('#selectAllFiles').checked = allChecked;
+  const selAll = $('#selectAllFiles');
+  if (selAll) selAll.checked = allChecked;
 }
 
 function updateCounts() {
@@ -420,9 +469,12 @@ function updateCounts() {
 
 function updateCenterVisibility() {
   const hasFiles = state.files.length > 0;
-  $('#dropZone').classList.toggle('hidden', hasFiles);
-  $('#viewsContainer').classList.toggle('hidden', !hasFiles);
-  $('#centerPane').classList.toggle('no-files', !hasFiles);
+  const dz = $('#dropZone');
+  const vc = $('#viewsContainer');
+  const cp = $('#centerPane');
+  if (dz) dz.classList.toggle('hidden', hasFiles);
+  if (vc) vc.classList.toggle('hidden', !hasFiles);
+  if (cp) cp.classList.toggle('no-files', !hasFiles);
 }
 
 /* ============================================================
@@ -432,6 +484,7 @@ function updateCenterVisibility() {
 function renderEditor() {
   const f = activeFile();
   const ta = $('#editor');
+  if (!ta) return;
   if (!f) {
     ta.value = '';
     $('#highlightLayer').innerHTML = '';
@@ -443,10 +496,12 @@ function renderEditor() {
   renderLineNumbers(ta.value);
   if (state.highlightAll && state.lastSearch) highlightInLayer();
   syncEditorScroll();
+  console.log('[renderEditor]', f.name, 'length:', ta.value.length);
 }
 
 function renderLineNumbers(text) {
   const ln = $('#lineNumbers');
+  if (!ln) return;
   if (!state.showLines) { ln.classList.add('hidden'); return; }
   ln.classList.remove('hidden');
   const count = (text.match(/\n/g) || []).length + 1;
@@ -457,6 +512,7 @@ function renderLineNumbers(text) {
 
 function renderHighlight(text) {
   const layer = $('#highlightLayer');
+  if (!layer) return;
   if (text.length > 400000) { layer.textContent = text; return; }
   layer.innerHTML = escapeHtml(text);
 }
@@ -474,6 +530,7 @@ function highlightInLayer() {
   if (!f) return;
   const q = state.lastSearch;
   const layer = $('#highlightLayer');
+  if (!layer) return;
   const text = f.text || '';
   if (!q) { renderHighlight(text); return; }
   const re = buildSearchRegex(q, false, false, false);
@@ -501,12 +558,14 @@ function syncEditorScroll() {
   const ta = $('#editor');
   const layer = $('#highlightLayer');
   const lnInner = $('#lineNumbersInner');
+  if (!ta || !layer || !lnInner) return;
   layer.style.transform = `translate(${-ta.scrollLeft}px, ${-ta.scrollTop}px)`;
   lnInner.style.transform = `translateY(${-ta.scrollTop}px)`;
 }
 
 function bindEditor() {
   const ta = $('#editor');
+  if (!ta) return;
 
   ta.addEventListener('input', debounce(() => {
     const f = activeFile();
@@ -515,7 +574,7 @@ function bindEditor() {
     if (state.editorUndo.length > 200) state.editorUndo.shift();
     state.editorRedo.length = 0;
     f.text = ta.value;
-    f.wordCount = (f.text.match(/[\p{L}\p{N}_'-]+/gu) || []).length;
+    f.wordCount = countWords(f.text);
     f.charCount = f.text.length;
     renderLineNumbers(f.text);
     if (state.highlightAll && state.lastSearch) highlightInLayer();
@@ -577,13 +636,9 @@ function performSearch(query, { caseSensitive=false, wholeWord=false, useRegex=f
       }
 
       state.results.push({
-        fileId: f.id,
-        fileName: f.name,
-        loc,
-        match: m[0],
-        before, after,
-        index: m.index,
-        globalIndex: state.results.length
+        fileId: f.id, fileName: f.name, loc,
+        match: m[0], before, after,
+        index: m.index, globalIndex: state.results.length
       });
       if (state.results.length > 5000) break;
     }
@@ -591,6 +646,7 @@ function performSearch(query, { caseSensitive=false, wholeWord=false, useRegex=f
   }
 
   if (state.results.length) state.resultIndex = 0;
+  console.log('[performSearch]', query, '->', state.results.length, 'matches');
   renderResults();
   highlightInLayer();
   syncResultUI();
@@ -608,6 +664,7 @@ function syncResultUI() {
 
 function renderResults() {
   const list = $('#resultsList');
+  if (!list) return;
   const items = state.results.slice(0, 300);
   list.innerHTML = items.map(r => `
     <li class="result-item ${r.globalIndex===state.resultIndex?'active':''}" data-idx="${r.globalIndex}">
@@ -632,8 +689,7 @@ function jumpToResult(idx) {
   ta.focus();
   ta.setSelectionRange(r.index, r.index + r.match.length);
   const lineNum = ta.value.slice(0, r.index).split('\n').length;
-  const lineHeight = 12.5 * 1.55;
-  ta.scrollTop = Math.max(0, (lineNum - 6) * lineHeight);
+  ta.scrollTop = Math.max(0, (lineNum - 6) * 19.4);
   syncEditorScroll();
   highlightInLayer();
   renderResults();
@@ -661,16 +717,12 @@ function performReplace(findStr, replStr, { caseSensitive=false, wholeWord=false
   const snapshot = targets.map(f => ({ id: f.id, text: f.text }));
   let total = 0;
 
-  // For "replace current" (first only), strip the global flag so String.replace hits one occurrence
   let replaceRe = globalRe;
-  if (!all) {
-    replaceRe = new RegExp(globalRe.source, globalRe.flags.replace('g',''));
-  }
+  if (!all) replaceRe = new RegExp(globalRe.source, globalRe.flags.replace('g',''));
 
   for (const f of targets) {
     const text = f.text || '';
     if (!text) continue;
-    // Count matches first with the global regex
     const cnt = (text.match(globalRe) || []).length;
     if (!cnt) continue;
 
@@ -680,11 +732,10 @@ function performReplace(findStr, replStr, { caseSensitive=false, wholeWord=false
     } else {
       f.text = text.replace(replaceRe, replStr);
       total += 1;
-      // Only replace first file in scope for "current" mode
       if (scope === 'current') break;
     }
 
-    f.wordCount = (f.text.match(/[\p{L}\p{N}_'-]+/gu) || []).length;
+    f.wordCount = countWords(f.text);
     f.charCount = f.text.length;
   }
 
@@ -692,6 +743,7 @@ function performReplace(findStr, replStr, { caseSensitive=false, wholeWord=false
     state.replaceStack.push({ snapshots: snapshot, label: `${total} replacement(s)` });
     if (state.replaceStack.length > 40) state.replaceStack.shift();
   }
+  console.log('[performReplace]', findStr, '->', replStr, ':', total, 'replacements');
   return total;
 }
 
@@ -700,22 +752,33 @@ function performReplace(findStr, replStr, { caseSensitive=false, wholeWord=false
    ============================================================ */
 function computeStats(text) {
   text = text || '';
-  const words = text.match(/[\p{L}\p{N}_'-]+/gu) || [];
+  const words = countWords(text);
+  const wordList = (() => {
+    try { return text.match(/[\p{L}\p{N}_'-]+/gu) || []; }
+    catch(e) { return text.trim().split(/\s+/).filter(Boolean); }
+  })();
   const letters = (text.match(/\p{L}/gu) || []).length;
   const numbers = (text.match(/\p{N}/gu) || []).length;
   const spaces = (text.match(/[ \t]/g) || []).length;
   const newlines = (text.match(/\n/g) || []).length;
   const lines = text.length ? text.split('\n').length : 0;
   const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim().length).length;
-  const sentenceMatches = text.match(/[^.!?\n]+[.!?]+(\s|$)/g) || [];
-  const sentences = sentenceMatches.length;
+
+  // sentence detection: punctuation-based, with fallback to newline-separated non-empty lines
+  let sentenceMatches = text.match(/[^.!?\n]+[.!?]+(\s|$)/g) || [];
+  let sentences = sentenceMatches.length;
+  if (sentences === 0 && text.trim()) {
+    // fallback: count non-empty lines as "sentences"
+    sentences = text.split('\n').filter(l => l.trim().length).length;
+  }
+
   const punctuation = (text.match(/[.,;:!?'"()\[\]{}\-–—…\/\\]/g) || []).length;
   const symbols = (text.match(/[^\p{L}\p{N}\s.,;:!?'"()\[\]{}\-–—…\/\\]/gu) || []).length;
   const chars = text.length;
   const charsNoSpace = text.replace(/\s/g, '').length;
 
   const freq = new Map();
-  for (const w of words) {
+  for (const w of wordList) {
     const k = w.toLowerCase();
     freq.set(k, (freq.get(k) || 0) + 1);
   }
@@ -725,7 +788,7 @@ function computeStats(text) {
   }
 
   return {
-    words: words.length, uniqueWords: freq.size, letters, numbers,
+    words, uniqueWords: freq.size, letters, numbers,
     spaces, newlines, lines, paragraphs, sentences, punctuation, symbols,
     chars, charsNoSpace, freq, letterFreq
   };
@@ -762,10 +825,12 @@ function switchView(v) {
     n.classList.toggle('active', n.dataset.view === v);
   });
   refreshViews();
+  console.log('[switchView]', v);
 }
 
 function refreshViews() {
-  const { stats } = scopedStats();
+  const { stats, files } = scopedStats();
+  console.log('[refreshViews] scope:', state.scope, 'targets:', files.length, 'words:', stats.words, 'sentences:', stats.sentences);
   renderLiveStats(stats);
   renderStatusBar(stats);
   if (state.view === 'overview') renderDashboard();
@@ -814,13 +879,17 @@ function renderLiveStats(s) {
     ['Most Used Word', mostWord ? `${mostWord[0]} (${mostWord[1]})` : '—'],
     ['Most Used Letter', mostLetter ? `${mostLetter[0].toUpperCase()} (${mostLetter[1]})` : '—']
   ];
-  $('#liveStats').innerHTML = rows.map(([k,v]) =>
+  const el = $('#liveStats');
+  if (!el) return;
+  el.innerHTML = rows.map(([k,v]) =>
     `<div class="stat-row"><span class="k">${k}</span><span class="v">${v}</span></div>`
   ).join('');
 }
 
 function renderStatusBar(s) {
-  $('#statusBar').textContent =
+  const el = $('#statusBar');
+  if (!el) return;
+  el.textContent =
     `${state.files.length} files • ${s.words.toLocaleString()} words • ${s.letters.toLocaleString()} letters • ${s.sentences.toLocaleString()} sentences`;
 }
 
@@ -941,11 +1010,23 @@ function renderSentences() {
     while ((m = re.exec(text)) !== null) {
       const s = m[0].trim();
       if (!s) continue;
-      const words = (s.match(/[\p{L}\p{N}_'-]+/gu) || []).length;
+      const words = countWords(s);
       let loc = 'Line ' + (text.slice(0, m.index).split('\n').length);
       const pageMatches = text.slice(0, m.index).match(/\[Page (\d+)/g);
       if (pageMatches && pageMatches.length) loc = 'Page ' + pageMatches[pageMatches.length-1].match(/\d+/)[0];
       all.push({ text: s, words, chars: s.length, file: f.name, loc, order: idx++ });
+    }
+    // Fallback: if no punctuation-based sentences found, use non-empty lines
+    if (all.length === 0 && text.trim()) {
+      const lines = text.split('\n');
+      let lineNum = 0;
+      for (const line of lines) {
+        lineNum++;
+        const s = line.trim();
+        if (!s) continue;
+        const words = countWords(s);
+        all.push({ text: s, words, chars: s.length, file: f.name, loc: 'Line ' + lineNum, order: idx++ });
+      }
     }
   }
   const sort = $('#sentSort').value;
@@ -990,7 +1071,7 @@ function renderPerFile() {
     const s = computeStats(f.text || '');
     return `<tr>
       <td>${escapeHtml(f.name)}</td>
-      <td>${f.ext.toUpperCase()}</td>
+      <td>${(f.ext||'?').toUpperCase()}</td>
       <td>${s.words.toLocaleString()}</td>
       <td>${s.letters.toLocaleString()}</td>
       <td>${s.sentences.toLocaleString()}</td>
@@ -1052,18 +1133,12 @@ function exportData(kind) {
   else if (kind === 'stats') {
     const rows = [['Metric','Value'],
       ['Files', state.files.length],
-      ['Words', stats.words],
-      ['Unique Words', stats.uniqueWords],
-      ['Letters', stats.letters],
-      ['Numbers', stats.numbers],
-      ['Spaces', stats.spaces],
-      ['Punctuation', stats.punctuation],
-      ['Symbols', stats.symbols],
-      ['Lines', stats.lines],
-      ['Paragraphs', stats.paragraphs],
-      ['Sentences', stats.sentences],
-      ['Characters', stats.chars],
-      ['Characters (no spaces)', stats.charsNoSpace]];
+      ['Words', stats.words], ['Unique Words', stats.uniqueWords],
+      ['Letters', stats.letters], ['Numbers', stats.numbers],
+      ['Spaces', stats.spaces], ['Punctuation', stats.punctuation],
+      ['Symbols', stats.symbols], ['Lines', stats.lines],
+      ['Paragraphs', stats.paragraphs], ['Sentences', stats.sentences],
+      ['Characters', stats.chars], ['Characters (no spaces)', stats.charsNoSpace]];
     download('statistics.csv', toCSV(rows), 'text/csv');
     toast('Exported statistics', 'ok');
   }
@@ -1090,7 +1165,7 @@ function exportData(kind) {
       while ((m = re.exec(text)) !== null) {
         const s = m[0].trim();
         if (!s) continue;
-        const words = (s.match(/[\p{L}\p{N}_'-]+/gu) || []).length;
+        const words = countWords(s);
         const loc = 'Line ' + (text.slice(0, m.index).split('\n').length);
         rows.push([i++, f.name, loc, words, s.length, s]);
       }
@@ -1106,7 +1181,7 @@ function exportData(kind) {
       'Generated: ' + new Date().toLocaleString(),
       '',
       'FILES ANALYZED',
-      ...state.files.map(f => `  ${f.name}  [${f.ext.toUpperCase()}]  ${fmtSize(f.size)}  ${f.status}${f.error?' ('+f.error+')':''}`),
+      ...state.files.map(f => `  ${f.name}  [${f.ext.toUpperCase()}]  ${fmtSize(f.size)}  ${f.status}  ${f.wordCount} words${f.error?' ('+f.error+')':''}`),
       '',
       'COMBINED STATISTICS',
       `  Words: ${stats.words.toLocaleString()}`,
@@ -1159,10 +1234,7 @@ function generatePDF() {
   for (const para of paragraphs) {
     const lines = doc.splitTextToSize(para || ' ', maxW);
     for (const line of lines) {
-      if (y + lineHeight > pageH - margin) {
-        doc.addPage();
-        y = margin;
-      }
+      if (y + lineHeight > pageH - margin) { doc.addPage(); y = margin; }
       doc.text(line, margin, y);
       y += lineHeight;
     }
@@ -1206,7 +1278,6 @@ function bindGlobal() {
   $('#btnBrowse').addEventListener('click', () => $('#fileInput').click());
   $('#fileInput').addEventListener('change', e => { addFiles(e.target.files); e.target.value = ''; });
 
-  // Drag & drop
   const dz = $('#dropZone');
   ['dragenter','dragover'].forEach(ev => document.addEventListener(ev, e => {
     e.preventDefault();
@@ -1222,7 +1293,6 @@ function bindGlobal() {
     if (state.files.length) dz.classList.add('hidden');
   }));
 
-  // File filter nav
   $$('.side-nav[data-group="files"] .nav-item').forEach(n => {
     n.addEventListener('click', () => {
       $$('.side-nav[data-group="files"] .nav-item').forEach(x => x.classList.remove('active'));
@@ -1232,16 +1302,15 @@ function bindGlobal() {
     });
   });
 
-  // View nav
   $$('.side-nav[data-group="views"] .nav-item').forEach(n => {
     n.addEventListener('click', () => switchView(n.dataset.view));
   });
 
-  // Select all
   $('#selectAllFiles').addEventListener('change', e => {
     state.selected.clear();
     if (e.target.checked) state.files.forEach(f => state.selected.add(f.id));
     renderFileList();
+    refreshViews();
   });
 
   $('#btnProcessAll').addEventListener('click', async () => {
@@ -1264,19 +1333,16 @@ function bindGlobal() {
     updateCenterVisibility(); renderResults(); syncResultUI();
   });
 
-  // Theme
   $('#btnTheme').addEventListener('click', () => {
     state.theme = state.theme === 'light' ? 'dark' : 'light';
     document.documentElement.dataset.theme = state.theme;
   });
 
-  // Focus search
   $('#btnFocusSearch').addEventListener('click', () => {
     switchView('editor');
     $('#quickSearch').focus();
   });
 
-  // Quick search
   const qs = $('#quickSearch');
   const runSearch = debounce(() => performSearch(qs.value, { scope: state.scope }), 220);
   qs.addEventListener('input', runSearch);
@@ -1288,21 +1354,18 @@ function bindGlobal() {
   $('#qNext').addEventListener('click', nextResult);
   $('#qClear').addEventListener('click', () => { qs.value=''; performSearch('', {}); });
 
-  // Editor tools
   $('#btnUndo').addEventListener('click', () => {
     const f = activeFile(); if (!f || !state.editorUndo.length) return;
     state.editorRedo.push(f.text);
     f.text = state.editorUndo.pop();
-    f.wordCount = (f.text.match(/[\p{L}\p{N}_'-]+/gu) || []).length;
-    f.charCount = f.text.length;
+    f.wordCount = countWords(f.text); f.charCount = f.text.length;
     renderEditor(); refreshStatsOnly(); renderFileList();
   });
   $('#btnRedo').addEventListener('click', () => {
     const f = activeFile(); if (!f || !state.editorRedo.length) return;
     state.editorUndo.push(f.text);
     f.text = state.editorRedo.pop();
-    f.wordCount = (f.text.match(/[\p{L}\p{N}_'-]+/gu) || []).length;
-    f.charCount = f.text.length;
+    f.wordCount = countWords(f.text); f.charCount = f.text.length;
     renderEditor(); refreshStatsOnly(); renderFileList();
   });
   $('#btnCopy').addEventListener('click', async () => {
@@ -1361,7 +1424,6 @@ function bindGlobal() {
     else renderHighlight($('#editor').value);
   });
 
-  // Find & Replace
   $('#frFindBtn').addEventListener('click', () => {
     const q = $('#frFind').value;
     switchView('editor');
@@ -1416,8 +1478,7 @@ function bindGlobal() {
       const f = state.files.find(x => x.id === s.id);
       if (f) {
         f.text = s.text;
-        f.wordCount = (f.text.match(/[\p{L}\p{N}_'-]+/gu) || []).length;
-        f.charCount = f.text.length;
+        f.wordCount = countWords(f.text); f.charCount = f.text.length;
       }
     });
     $('#frStatus').textContent = 'Replacement undone.';
@@ -1425,21 +1486,13 @@ function bindGlobal() {
     toast('Undone', 'ok');
   });
 
-  // Frequency controls
   $('#ignoreCommon').addEventListener('change', renderFrequency);
   $('#freqTop').addEventListener('change', renderFrequency);
-
-  // All words
   $('#allWordsSearch').addEventListener('input', debounce(renderAllWords, 150));
   $('#allWordsSort').addEventListener('change', renderAllWords);
-
-  // Sentences
   $('#sentSort').addEventListener('change', renderSentences);
-
-  // Export
   $$('[data-export]').forEach(b => b.addEventListener('click', () => exportData(b.dataset.export)));
 
-  // Keyboard shortcuts
   document.addEventListener('keydown', e => {
     const mod = e.ctrlKey || e.metaKey;
     if (mod && e.key === 'f') { e.preventDefault(); switchView('editor'); $('#quickSearch').focus(); $('#quickSearch').select(); }
@@ -1449,9 +1502,6 @@ function bindGlobal() {
   });
 }
 
-/* ============================================================
-   BOOT
-   ============================================================ */
 document.addEventListener('DOMContentLoaded', () => {
   renderScopeSwitches();
   bindEditor();
@@ -1462,4 +1512,13 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshViews();
   syncResultUI();
   renderResults();
+  // Log library availability
+  console.log('[init] libraries:', {
+    pdfjs: typeof pdfjsLib !== 'undefined',
+    tesseract: typeof Tesseract !== 'undefined',
+    mammoth: typeof mammoth !== 'undefined',
+    xlsx: typeof XLSX !== 'undefined',
+    jszip: typeof JSZip !== 'undefined',
+    jspdf: typeof window.jspdf !== 'undefined'
+  });
 });
