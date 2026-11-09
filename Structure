@@ -13,3 +13,19 @@ WordAnalyzer/
     ├── upload-manager.js
     ├── dashboard.js
     └── animations.js
+    
+    
+                            NEW STRUCTURE
+                            
+    WordAnalyzer/
+├── index.html
+├── 404.html
+├── css/
+│   ├── style.css
+│   └── responsive.css
+└── js/
+    ├── core.js
+    ├── upload.js
+    ├── analyzer.js
+    ├── ui.js
+    └── main.js
