@@ -515,3 +515,24 @@ mark.hl.active{background:var(--mark-active);color:#111;}
   .dash-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));}
   .view-title{font-size:16px;}
 }
+
+.debug-log{
+  font-family:var(--mono);
+  font-size:10.5px;
+  color:var(--text-soft);
+  background:var(--surface-2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:8px;
+  max-height:220px;
+  overflow-y:auto;
+  margin-top:8px;
+  white-space:pre-wrap;
+  line-height:1.4;
+  word-break:break-all;
+}
+.debug-log .ok{color:#2f8f5b;}
+.debug-log .err{color:#c0392b;}
+.debug-log .info{color:var(--accent-2);}
+
+
