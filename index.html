@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Universal Text Analyzer</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 24 24" width="26" height="26"><path fill="currentColor" d="M4 3h11l5 5v13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm10 1.5V9h4.5L14 4.5zM6 12h12v1.6H6V12zm0 3.4h12V17H6v-1.6zm0-6.8h6v1.6H6V8.6z"/></svg>
+    <span>Universal Text Analyzer</span>
+  </div>
+  <div class="header-actions">
+    <button id="btnUpload" class="btn btn-primary">
+      <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M12 3l4 4h-3v6h-2V7H8l4-4zM5 18h14v2H5z"/></svg>
+      Upload Files
+    </button>
+    <button id="btnFocusSearch" class="btn">
+      <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></svg>
+      Search
+    </button>
+    <button id="btnTheme" class="btn icon-btn" title="Toggle theme">
+      <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="app-body">
+
+  <aside class="sidebar left">
+    <div class="side-section">
+      <div class="side-title">Files</div>
+      <nav class="side-nav" data-group="files">
+        <button class="nav-item active" data-filter="all">All Files <span class="count" data-count="all">0</span></button>
+        <button class="nav-item" data-filter="pdf">PDFs <span class="count" data-count="pdf">0</span></button>
+        <button class="nav-item" data-filter="image">Images <span class="count" data-count="image">0</span></button>
+        <button class="nav-item" data-filter="doc">Documents <span class="count" data-count="doc">0</span></button>
+        <button class="nav-item" data-filter="text">Text Files <span class="count" data-count="text">0</span></button>
+      </nav>
+    </div>
+
+    <div class="side-section">
+      <div class="side-title">Analysis</div>
+      <nav class="side-nav" data-group="views">
+        <button class="nav-item active" data-view="editor">Editor</button>
+        <button class="nav-item" data-view="overview">Overview</button>
+        <button class="nav-item" data-view="replace">Find &amp; Replace</button>
+        <button class="nav-item" data-view="frequency">Word Frequency</button>
+        <button class="nav-item" data-view="allwords">All Words</button>
+        <button class="nav-item" data-view="letters">Letter Frequency</button>
+        <button class="nav-item" data-view="sentences">Sentences</button>
+        <button class="nav-item" data-view="characters">Characters</button>
+        <button class="nav-item" data-view="perfile">Per-File Stats</button>
+      </nav>
+    </div>
+
+    <div class="side-section">
+      <div class="side-title">Files List</div>
+      <div class="file-list-header">
+        <label class="mini-check"><input type="checkbox" id="selectAllFiles"><span>Select all</span></label>
+        <div class="mini-actions">
+          <button class="mini-btn" id="btnProcessAll" title="Process all">Process</button>
+          <button class="mini-btn" id="btnRemoveAll" title="Remove all">Clear</button>
+        </div>
+      </div>
+      <ul id="fileList" class="file-list"></ul>
+    </div>
+  </aside>
+
+  <main class="center" id="centerPane">
+
+    <div id="dropZone" class="drop-zone">
+      <svg viewBox="0 0 24 24" width="42" height="42"><path fill="currentColor" d="M12 3l5 5h-3.5v6h-3V8H7l5-5zM5 18h14v2H5z"/></svg>
+      <div class="dz-title">Drop files here</div>
+      <div class="dz-sub">or</div>
+      <button class="btn btn-primary" id="btnBrowse">Browse Files</button>
+      <div class="dz-hint">PDF · DOCX · XLSX · PPTX · TXT · CSV · MD · JSON · JPG · PNG · WEBP · GIF</div>
+      <input type="file" id="fileInput" multiple hidden>
+    </div>
+
+    <div id="viewsContainer" class="views-container hidden">
+
+      <section id="viewEditor" class="view">
+        <div class="viewer-toolbar">
+          <div class="search-bar">
+            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></svg>
+            <input type="text" id="quickSearch" placeholder="Search in documents…">
+            <span class="match-counter" id="quickCounter">0 results</span>
+            <button class="tool-btn" id="qPrev" title="Previous">&#8249;</button>
+            <button class="tool-btn" id="qNext" title="Next">&#8250;</button>
+            <button class="tool-btn" id="qClear" title="Clear">&#10005;</button>
+          </div>
+          <div class="toolbar-tools">
+            <button class="tool-btn" id="btnUndo" title="Undo">&#8630; Undo</button>
+            <button class="tool-btn" id="btnRedo" title="Redo">Redo &#8631;</button>
+            <button class="tool-btn" id="btnCopy" title="Copy">Copy</button>
+            <button class="tool-btn" id="btnCut" title="Cut">Cut</button>
+            <button class="tool-btn" id="btnPaste" title="Paste">Paste</button>
+            <button class="tool-btn" id="btnSelectAll" title="Select All">All</button>
+            <button class="tool-btn" id="btnClearText" title="Clear">Clear</button>
+            <button class="tool-btn" id="btnWrap" title="Word wrap">Wrap</button>
+            <button class="tool-btn active" id="btnLines" title="Line numbers">Lines</button>
+            <button class="tool-btn active" id="btnHighlightAll" title="Highlight all">Highlight</button>
+          </div>
+        </div>
+
+        <div class="editor-wrap" id="editorWrap">
+          <div class="line-numbers" id="lineNumbers"><div id="lineNumbersInner"></div></div>
+          <div class="editor-scroll" id="editorScroll">
+            <div class="highlight-layer" id="highlightLayer"></div>
+            <textarea id="editor" spellcheck="false" wrap="off" placeholder="Extracted text will appear here…"></textarea>
+          </div>
+        </div>
+      </section>
+
+      <section id="viewOverview" class="view hidden">
+        <div class="view-head">
+          <h2 class="view-title">Statistics Dashboard</h2>
+          <div class="scope-switch" data-scope="dash"></div>
+        </div>
+        <div class="dash-grid" id="dashGrid"></div>
+      </section>
+
+      <section id="viewReplace" class="view hidden">
+        <div class="view-head">
+          <h2 class="view-title">Find &amp; Replace</h2>
+          <div class="scope-switch" data-scope="replace"></div>
+        </div>
+        <div class="panel-card">
+          <div class="field-row">
+            <label>Find</label>
+            <input type="text" id="frFind" placeholder="Text to find">
+          </div>
+          <div class="field-row">
+            <label>Replace with</label>
+            <input type="text" id="frReplace" placeholder="Replacement text">
+          </div>
+          <div class="opt-row">
+            <label class="mini-check"><input type="checkbox" id="frCase"><span>Case sensitive</span></label>
+            <label class="mini-check"><input type="checkbox" id="frWord"><span>Whole word</span></label>
+            <label class="mini-check"><input type="checkbox" id="frRegex"><span>Regular expression</span></label>
+          </div>
+          <div class="btn-row">
+            <button class="btn" id="frFindBtn">Find</button>
+            <button class="btn" id="frReplaceOne">Replace Current</button>
+            <button class="btn btn-primary" id="frReplaceAll">Replace All</button>
+            <button class="btn" id="frUndo">Undo Replacement</button>
+          </div>
+          <div class="fr-status" id="frStatus"></div>
+        </div>
+      </section>
+
+      <section id="viewFrequency" class="view hidden">
+        <div class="view-head">
+          <h2 class="view-title">Most Frequent Words</h2>
+          <div class="view-tools">
+            <label class="mini-check"><input type="checkbox" id="ignoreCommon" checked><span>Ignore common words</span></label>
+            <select id="freqTop">
+              <option value="10">Top 10</option>
+              <option value="25" selected>Top 25</option>
+              <option value="50">Top 50</option>
+              <option value="100">Top 100</option>
+              <option value="all">All words</option>
+            </select>
+          </div>
+        </div>
+        <div class="panel-card">
+          <table class="data-table" id="freqTable">
+            <thead><tr><th>Rank</th><th>Word</th><th>Count</th><th>Percentage</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="viewAllWords" class="view hidden">
+        <div class="view-head">
+          <h2 class="view-title">All Words</h2>
+          <div class="view-tools">
+            <input type="text" id="allWordsSearch" placeholder="Search word list…">
+            <select id="allWordsSort">
+              <option value="az">Alphabetical A-Z</option>
+              <option value="za">Alphabetical Z-A</option>
+              <option value="desc">Most frequent</option>
+              <option value="asc">Least frequent</option>
+            </select>
+          </div>
+        </div>
+        <div class="panel-card words-cloud" id="allWordsList"></div>
+      </section>
+
+      <section id="viewLetters" class="view hidden">
+        <div class="view-head"><h2 class="view-title">Letter Frequency</h2></div>
+        <div class="panel-card">
+          <div class="letter-summary" id="letterSummary"></div>
+          <div id="letterChart" class="letter-chart"></div>
+          <table class="data-table" id="letterTable">
+            <thead><tr><th>Letter</th><th>Count</th><th>Percentage</th><th>Bar</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="viewSentences" class="view hidden">
+        <div class="view-head">
+          <h2 class="view-title">Sentence Analyzer</h2>
+          <div class="view-tools">
+            <select id="sentSort">
+              <option value="orig">Original order</option>
+              <option value="long">Longest first</option>
+              <option value="short">Shortest first</option>
+              <option value="most">Most words</option>
+              <option value="few">Fewest words</option>
+            </select>
+          </div>
+        </div>
+        <div class="panel-card">
+          <div class="sent-total" id="sentTotal"></div>
+          <ol id="sentList" class="sent-list"></ol>
+        </div>
+      </section>
+
+      <section id="viewCharacters" class="view hidden">
+        <div class="view-head"><h2 class="view-title">Character Analyzer</h2></div>
+        <div class="panel-card">
+          <div class="char-grid" id="charGrid"></div>
+        </div>
+      </section>
+
+      <section id="viewPerFile" class="view hidden">
+        <div class="view-head"><h2 class="view-title">File-by-File Analysis</h2></div>
+        <div class="panel-card">
+          <table class="data-table" id="perFileTable">
+            <thead><tr><th>File</th><th>Type</th><th>Words</th><th>Letters</th><th>Sentences</th><th>Characters</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <div class="total-row" id="perFileTotal"></div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <aside class="sidebar right">
+    <div class="side-section">
+      <div class="side-title">Live Statistics</div>
+      <div class="stat-list" id="liveStats"></div>
+    </div>
+
+    <div class="side-section">
+      <div class="side-title">Search Results</div>
+      <div class="results-meta" id="resultsMeta">No search yet.</div>
+      <ul class="results-list" id="resultsList"></ul>
+    </div>
+
+    <div class="side-section">
+      <div class="side-title">Export</div>
+      <div class="export-grid">
+        <button class="btn small" data-export="txt">Extracted Text (TXT)</button>
+        <button class="btn small" data-export="edited">Edited Text (TXT)</button>
+        <button class="btn small" data-export="freq">Word Frequency (CSV)</button>
+        <button class="btn small" data-export="stats">Statistics (CSV)</button>
+        <button class="btn small" data-export="results">Search Results (CSV)</button>
+        <button class="btn small" data-export="words">All Words (CSV)</button>
+        <button class="btn small" data-export="sentences">Sentences (CSV)</button>
+        <button class="btn small" data-export="report">Analysis Report (TXT)</button>
+        <button class="btn small btn-primary" data-export="pdf">Generate New PDF</button>
+      </div>
+    </div>
+
+    <div class="side-section">
+      <div class="side-title">Privacy</div>
+      <p class="privacy-note">Your files are processed locally in your browser and are not uploaded to a server.</p>
+    </div>
+  </aside>
+</div>
+
+<footer class="status-bar" id="statusBar">0 files • 0 words • 0 letters • 0 sentences</footer>
+
+<div class="modal-backdrop hidden" id="modalBackdrop">
+  <div class="modal">
+    <h3 id="modalTitle">Confirm</h3>
+    <p id="modalText"></p>
+    <div class="modal-actions">
+      <button class="btn" id="modalCancel">Cancel</button>
+      <button class="btn btn-primary" id="modalOk">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts" class="toasts"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
