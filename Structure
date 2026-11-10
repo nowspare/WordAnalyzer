@@ -30,19 +30,4 @@ WordAnalyzer/
     ├── analyzer.js     ← add
     ├── ui.js           ← add
     └── main.js         ← add
-    
-    
-    
-                            
-    WordAnalyzer/
-├── index.html
-├── 404.html
-├── css/
-│   ├── style.css
-│   └── responsive.css
-└── js/
-    ├── core.js
-    ├── upload.js
-    ├── analyzer.js
-    ├── ui.js
-    └── main.js
+  
