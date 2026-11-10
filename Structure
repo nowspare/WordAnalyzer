@@ -17,6 +17,23 @@ WordAnalyzer/
     
                             NEW STRUCTURE
                             
+                            
+      WordAnalyzer/
+├── index.html          ← replace
+├── 404.html            ← add
+├── css/
+│   ├── style.css       ← replace
+│   └── responsive.css  ← replace
+└── js/
+    ├── core.js         ← add
+    ├── upload.js       ← add
+    ├── analyzer.js     ← add
+    ├── ui.js           ← add
+    └── main.js         ← add
+    
+    
+    
+                            
     WordAnalyzer/
 ├── index.html
 ├── 404.html
