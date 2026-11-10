@@ -3,381 +3,594 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#04060d">
-<title>WordAnalyzer — Universal Text Analyzer</title>
-
-<link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="css/components.css">
-<link rel="stylesheet" href="css/3d-effects.css">
-<link rel="stylesheet" href="css/animations.css">
+<meta name="theme-color" content="#000000">
+<title>WordAnalyzer — Local Text Analysis</title>
+<meta name="description" content="WordAnalyzer analyses PDF, DOCX, XLSX, PPTX, TXT, CSV, JSON, Markdown and images entirely in your browser. Word counts, frequency, RTL support, and exports — nothing leaves your device.">
+<meta property="og:title" content="WordAnalyzer — Local Text Analysis">
+<meta property="og:description" content="Analyse documents in your browser. No uploads, no servers, no tracking.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://nowspare.github.io/WordAnalyzer/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23000'/%3E%3Cpath d='M14 20l7 24 6-18 6 18 7-24' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/responsive.css">
 
-<!-- Core extraction / export libraries (unchanged CDNs) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<!-- 3D -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- Extraction libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js" defer></script>
 </head>
 <body>
 
-<!-- ============ 3D BACKGROUND ============ -->
-<canvas id="bg3d" aria-hidden="true"></canvas>
-<div class="bg-glow" aria-hidden="true"></div>
+<!-- ============ SVG SPRITE ============ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 20 6v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4.5 4.5"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 14.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9.1A1.7 1.7 0 0 0 10.13 3.1V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9.1a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1.03z"/></symbol>
+    <symbol id="i-file-text" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></symbol>
+    <symbol id="i-file-pdf" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M8 15h1.5a1.5 1.5 0 0 0 0-3H8v6M13 18v-6h1a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2z" stroke-width="1.4"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m3 17 5-5 4 4 3-3 6 6"/></symbol>
+    <symbol id="i-bar-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+    <symbol id="i-type" viewBox="0 0 24 24"><path d="M4 7V5h16v2M9 5v14M15 5v14"/></symbol>
+    <symbol id="i-align-left" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h14"/></symbol>
+    <symbol id="i-align-right" viewBox="0 0 24 24"><path d="M4 6h16M10 12h10M6 18h14"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+    <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><path d="M20 4 8.5 15.5M8.5 8.5 20 20"/></symbol>
+    <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L20 8l-4-4L4 16z"/><path d="m14 6 4 4"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></symbol>
+    <symbol id="i-github" viewBox="0 0 24 24"><path d="M9 19c-4 1.2-4-2-6-2.5M15 21v-3.2a2.8 2.8 0 0 0-.8-2.2c2.6-.3 5.3-1.3 5.3-5.8a4.5 4.5 0 0 0-1.2-3.1 4.2 4.2 0 0 0-.1-3.1s-1-.3-3.3 1.2a11.4 11.4 0 0 0-6 0C6.6 3.3 5.6 3.6 5.6 3.6a4.2 4.2 0 0 0-.1 3.1A4.5 4.5 0 0 0 4.3 9.8c0 4.4 2.7 5.5 5.3 5.8a2.8 2.8 0 0 0-.8 2.2V21"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></symbol>
+    <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 8h14l-3-3M20 16H6l3 3"/></symbol>
+    <symbol id="i-reverse" viewBox="0 0 24 24"><path d="M7 4 3 8l4 4"/><path d="M3 8h14a4 4 0 0 1 0 8h-2M17 20l4-4-4-4"/><path d="M21 16H7a4 4 0 0 1 0-8h2"/></symbol>
+  </defs>
+</svg>
 
 <!-- ============ HEADER ============ -->
-<header class="app-header glass">
-  <div class="brand">
-    <div class="logo-orb" aria-hidden="true">
-      <span></span><span></span><span></span>
-      <i class="logo-core"></i>
-    </div>
-    <div class="brand-text">
-      <span class="brand-name">WordAnalyzer</span>
-      <span class="brand-sub">Universal Text Analyzer</span>
-    </div>
-  </div>
+<header class="site-header">
+  <a class="brand" href="#home" data-nav="home" aria-label="WordAnalyzer home">
+    <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+      <rect width="32" height="32" rx="8" fill="currentColor"/>
+      <path d="M7 10l3.5 12 3-9 3 9L20 10" stroke="#000" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span class="brand-name">WordAnalyzer</span>
+  </a>
+
+  <nav class="main-nav" aria-label="Main">
+    <button class="nav-link active" data-nav="home">Home</button>
+    <button class="nav-link" data-nav="features">Features</button>
+    <button class="nav-link" data-nav="privacy">Privacy</button>
+    <button class="nav-link" data-nav="contact">Contact</button>
+    <button class="nav-link" data-nav="app">Analyzer</button>
+  </nav>
 
   <div class="header-actions">
     <button id="btnUpload" class="btn btn-primary">
-      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 3l5 5h-3.5v6h-3V8H7l5-5zM5 18h14v2H5z"/></svg>
-      <span>Upload Files</span>
+      <svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg>
+      <span>Upload</span>
     </button>
-    <button id="btnFocusSearch" class="btn">
-      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></svg>
-      <span>Search</span>
+    <button id="btnTheme" class="btn btn-ghost icon-only" aria-label="Toggle theme" title="Toggle theme">
+      <svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg>
     </button>
-    <button id="btnTheme" class="btn icon-btn" title="Toggle theme" aria-label="Toggle theme">
-      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></svg>
+    <button id="btnSettings" class="btn btn-ghost icon-only" aria-label="Settings" title="Settings">
+      <svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg>
     </button>
-    <button id="btnSettings" class="btn icon-btn" title="Settings" aria-label="Settings">
-      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9 4a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L16 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 7 12a7 7 0 0 0 .1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L12 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6A7 7 0 0 0 21 12z"/></svg>
-    </button>
-    <button id="btnMenu" class="btn icon-btn menu-btn" title="Menu" aria-label="Menu">
-      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>
+    <button id="btnMenu" class="btn btn-ghost icon-only menu-toggle" aria-label="Open menu" aria-expanded="false">
+      <svg class="icon" aria-hidden="true"><use href="#i-menu"/></svg>
     </button>
   </div>
 </header>
 
-<!-- ============ REAL-TIME UPLOAD STRIP ============ -->
-<section id="uploadStrip" class="upload-strip" aria-live="polite" aria-label="Upload progress">
-  <div class="upload-strip-head">
-    <span class="us-title">Processing queue</span>
-    <span class="us-total" id="uploadTotal">0 of 0 completed</span>
-    <button class="us-clear" id="uploadClear" type="button">Clear completed</button>
+<input type="file" id="fileInput" multiple hidden
+  accept=".txt,text/plain,.csv,text/csv,.md,text/markdown,.json,application/json,.log,text/plain,.html,.htm,text/html,.xml,text/xml,.pdf,.docx,.xlsx,.xls,.pptx,.jpg,.jpeg,.png,.webp,.gif">
+
+<!-- ============ UPLOAD STRIP ============ -->
+<section id="uploadStrip" class="upload-strip" aria-live="polite" aria-label="Processing queue">
+  <div class="upload-head">
+    <span class="upload-title">Processing queue</span>
+    <span id="uploadTotal" class="upload-total">0 of 0 completed</span>
+    <button id="uploadClear" class="btn btn-tiny" type="button">Clear completed</button>
   </div>
-  <div class="upload-rows" id="uploadRows"></div>
+  <div id="uploadRows" class="upload-rows"></div>
 </section>
 
-<div id="sidebarOverlay" class="sidebar-overlay" hidden></div>
+<!-- ============ PAGES ============ -->
+<main id="main">
 
-<!-- ============ APP BODY ============ -->
-<div class="app-body">
-
-  <!-- LEFT SIDEBAR -->
-  <aside class="sidebar left glass" id="leftSidebar">
-    <div class="side-section">
-      <div class="side-title">Files</div>
-      <nav class="side-nav" data-group="files">
-        <button class="nav-item active" data-filter="all"><span>All Files</span><span class="count" data-count="all">0</span></button>
-        <button class="nav-item" data-filter="pdf"><span>PDFs</span><span class="count" data-count="pdf">0</span></button>
-        <button class="nav-item" data-filter="image"><span>Images</span><span class="count" data-count="image">0</span></button>
-        <button class="nav-item" data-filter="doc"><span>Documents</span><span class="count" data-count="doc">0</span></button>
-        <button class="nav-item" data-filter="text"><span>Text Files</span><span class="count" data-count="text">0</span></button>
-      </nav>
+  <!-- HOME -->
+  <section id="page-home" class="page active">
+    <div class="hero">
+      <p class="eyebrow">Local · Private · No server</p>
+      <h1 class="hero-title">Read any document.<br>Understand every word.</h1>
+      <p class="hero-sub">Drop a PDF, Word file, spreadsheet, image, or plain text file. WordAnalyzer extracts the text in your browser and gives you real statistics — word counts, frequency, sentences, letters, and exports — without sending anything anywhere.</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary btn-lg" id="heroUpload">
+          <svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg>
+          Upload files
+        </button>
+        <button class="btn btn-outline btn-lg" data-nav="app">
+          Open analyzer
+          <svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg>
+        </button>
+      </div>
+      <p class="hero-note">Supported: PDF, DOCX, XLSX, PPTX, TXT, CSV, JSON, Markdown, JPG, PNG, WEBP, GIF</p>
     </div>
 
-    <div class="side-section">
-      <div class="side-title">Analysis</div>
-      <nav class="side-nav" data-group="views">
-        <button class="nav-item active" data-view="editor"><span>Editor</span></button>
-        <button class="nav-item" data-view="overview"><span>Overview</span></button>
-        <button class="nav-item" data-view="replace"><span>Find &amp; Replace</span></button>
-        <button class="nav-item" data-view="frequency"><span>Word Frequency</span></button>
-        <button class="nav-item" data-view="allwords"><span>All Words</span></button>
-        <button class="nav-item" data-view="letters"><span>Letter Frequency</span></button>
-        <button class="nav-item" data-view="sentences"><span>Sentences</span></button>
-        <button class="nav-item" data-view="characters"><span>Characters</span></button>
-        <button class="nav-item" data-view="perfile"><span>Per-File Stats</span></button>
-      </nav>
+    <div id="homeDrop" class="dropzone dropzone-large" tabindex="0" role="button" aria-label="Drop files here or press Enter to browse">
+      <svg class="dz-icon" aria-hidden="true"><use href="#i-upload"/></svg>
+      <p class="dz-title">Drop files here</p>
+      <p class="dz-sub">or <span class="link">browse your device</span></p>
+      <p class="dz-hint">All processing happens locally. Nothing is uploaded.</p>
     </div>
 
-    <div class="side-section grow">
-      <div class="side-title">Files List</div>
-      <div class="file-list-header">
-        <label class="mini-check"><input type="checkbox" id="selectAllFiles"><span>Select all</span></label>
-        <div class="mini-actions">
-          <button class="mini-btn" id="btnProcessAll" title="Process all">Process</button>
-          <button class="mini-btn" id="btnRemoveAll" title="Remove all">Clear</button>
+    <div class="quick-stats" id="quickStats">
+      <div class="qs-card"><span class="qs-label">Files</span><span class="qs-value" data-qs="files">0</span></div>
+      <div class="qs-card"><span class="qs-label">Words</span><span class="qs-value" data-qs="words">0</span></div>
+      <div class="qs-card"><span class="qs-label">Characters</span><span class="qs-value" data-qs="chars">0</span></div>
+      <div class="qs-card"><span class="qs-label">Sentences</span><span class="qs-value" data-qs="sentences">0</span></div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="page-features" class="page">
+    <div class="page-head">
+      <p class="eyebrow">What it does</p>
+      <h2>Every tool you need to read a document properly.</h2>
+      <p class="page-sub">Built for writers, researchers, translators, and anyone who works with text in more than one script.</p>
+    </div>
+
+    <div class="feature-grid">
+      <article class="feature-card">
+        <svg class="feature-icon" aria-hidden="true"><use href="#i-file-pdf"/></svg>
+        <h3>Document extraction</h3>
+        <p>PDF, DOCX, XLSX, PPTX, TXT, CSV, JSON, and Markdown. Text is pulled out page by page, sheet by sheet, slide by slide.</p>
+      </article>
+      <article class="feature-card">
+        <svg class="feature-icon" aria-hidden="true"><use href="#i-image"/></svg>
+        <h3>Image OCR</h3>
+        <p>JPG, PNG, WEBP, and GIF are read with Tesseract. Confidence scores are shown alongside the extracted text.</p>
+      </article>
+      <article class="feature-card">
+        <svg class="feature-icon" aria-hidden="true"><use href="#i-bar-chart"/></svg>
+        <h3>Full statistics</h3>
+        <p>Words, unique words, characters, letters, sentences, paragraphs, reading time, and average word length — all computed from the actual extracted text.</p>
+      </article>
+      <article class="feature-card">
+        <svg class="feature-icon" aria-hidden="true"><use href="#i-list"/></svg>
+        <h3>Word frequency</h3>
+        <p>Ranked word lists, percentages, and a visual cloud. Click any word to jump straight to its occurrences in the editor.</p>
+      </article>
+      <article class="feature-card">
+        <svg class="feature-icon" aria-hidden="true"><use href="#i-type"/></svg>
+        <h3>RTL, LTR, and reversal</h3>
+        <p>Switch the editor between left-to-right and right-to-left. Reverse text by grapheme cluster, reverse word order, or restore the original instantly.</p>
+      </article>
+      <article class="feature-card">
+        <svg class="feature-icon" aria-hidden="true"><use href="#i-download"/></svg>
+        <h3>Exports</h3>
+        <p>Download extracted text, edited text, word frequency, statistics, sentences, search results, and a generated PDF report.</p>
+      </article>
+      <article class="feature-card">
+        <svg class="feature-icon" aria-hidden="true"><use href="#i-search"/></svg>
+        <h3>Search and replace</h3>
+        <p>Search across one file, selected files, or all files. Replace single occurrences or every occurrence, with undo.</p>
+      </article>
+      <article class="feature-card">
+        <svg class="feature-icon" aria-hidden="true"><use href="#i-shield"/></svg>
+        <h3>Nothing leaves the browser</h3>
+        <p>There is no backend. Files are read with the browser's File API and never uploaded to a server.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- PRIVACY -->
+  <section id="page-privacy" class="page">
+    <div class="page-head">
+      <p class="eyebrow">Privacy</p>
+      <h2>Your files stay on your device.</h2>
+      <p class="page-sub">This is a statement of what the code actually does, not a marketing promise.</p>
+    </div>
+
+    <div class="prose">
+      <h3>How files are processed</h3>
+      <p>When you choose a file, the browser's File API reads it directly from your disk into memory. Extraction, OCR, search, replacement, and statistics all run as JavaScript inside the page. No network request is made with file contents, extracted text, or analysis results.</p>
+
+      <h3>What is stored</h3>
+      <p>The application keeps only two things in <code>localStorage</code>: your theme preference and your text-direction preference. Files and extracted text are never written to persistent storage. They live in memory for the current session and disappear when you close the tab or remove the file.</p>
+
+      <h3>Third-party scripts</h3>
+      <p>The page loads open-source libraries from public CDNs: PDF.js, Mammoth, SheetJS, JSZip, jsPDF, and Tesseract. These requests download code only. No file data is sent to those CDNs. You can self-host the libraries if you prefer to avoid the CDN request entirely.</p>
+
+      <h3>What we do not do</h3>
+      <p>No accounts. No analytics. No tracking pixels. No cookies beyond the two preference values above. No server logs of document contents.</p>
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <section id="page-contact" class="page">
+    <div class="page-head">
+      <p class="eyebrow">Contact</p>
+      <h2>Feedback, bugs, and questions.</h2>
+      <p class="page-sub">WordAnalyzer is open source. The fastest route for a bug is a GitHub issue.</p>
+    </div>
+
+    <div class="contact-grid">
+      <form class="contact-form" id="contactForm" novalidate>
+        <label for="cfName">Name</label>
+        <input id="cfName" type="text" autocomplete="name" required>
+        <label for="cfEmail">Email</label>
+        <input id="cfEmail" type="email" autocomplete="email" required>
+        <label for="cfSubject">Subject</label>
+        <select id="cfSubject">
+          <option>General question</option>
+          <option>Bug report</option>
+          <option>Feature request</option>
+        </select>
+        <label for="cfMessage">Message</label>
+        <textarea id="cfMessage" rows="5" required></textarea>
+        <button class="btn btn-primary" type="submit">Send message</button>
+        <p class="form-note">This opens your email app with the message prefilled. No data is sent by this page.</p>
+      </form>
+
+      <aside class="contact-aside">
+        <h3>Repository</h3>
+        <a class="contact-link" href="https://github.com/nowspare/WordAnalyzer" target="_blank" rel="noopener">
+          <svg class="icon" aria-hidden="true"><use href="#i-github"/></svg>
+          github.com/nowspare/WordAnalyzer
+        </a>
+        <h3>Issues</h3>
+        <a class="contact-link" href="https://github.com/nowspare/WordAnalyzer/issues" target="_blank" rel="noopener">
+          <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>
+          Report a bug
+        </a>
+        <h3>Email</h3>
+        <a class="contact-link" href="mailto:hello@wordanalyzer.dev">
+          <svg class="icon" aria-hidden="true"><use href="#i-mail"/></svg>
+          hello@wordanalyzer.dev
+        </a>
+      </aside>
+    </div>
+  </section>
+
+  <!-- APP -->
+  <section id="page-app" class="page app-page">
+    <div class="app-shell">
+
+      <!-- LEFT SIDEBAR -->
+      <aside class="sidebar sidebar-left" id="sidebarLeft">
+        <div class="side-block">
+          <h2 class="side-title">Files</h2>
+          <nav class="side-nav" aria-label="File filters">
+            <button class="side-link active" data-filter="all"><span>All files</span><span class="count" data-count="all">0</span></button>
+            <button class="side-link" data-filter="pdf"><span>PDFs</span><span class="count" data-count="pdf">0</span></button>
+            <button class="side-link" data-filter="image"><span>Images</span><span class="count" data-count="image">0</span></button>
+            <button class="side-link" data-filter="doc"><span>Documents</span><span class="count" data-count="doc">0</span></button>
+            <button class="side-link" data-filter="text"><span>Text files</span><span class="count" data-count="text">0</span></button>
+          </nav>
+        </div>
+
+        <div class="side-block">
+          <h2 class="side-title">Analysis</h2>
+          <nav class="side-nav" aria-label="Analysis views">
+            <button class="side-link active" data-view="editor"><span>Editor</span></button>
+            <button class="side-link" data-view="overview"><span>Overview</span></button>
+            <button class="side-link" data-view="replace"><span>Find &amp; replace</span></button>
+            <button class="side-link" data-view="frequency"><span>Word frequency</span></button>
+            <button class="side-link" data-view="allwords"><span>All words</span></button>
+            <button class="side-link" data-view="letters"><span>Letter frequency</span></button>
+            <button class="side-link" data-view="sentences"><span>Sentences</span></button>
+            <button class="side-link" data-view="characters"><span>Characters</span></button>
+            <button class="side-link" data-view="perfile"><span>Per-file stats</span></button>
+          </nav>
+        </div>
+
+        <div class="side-block grow">
+          <h2 class="side-title">Loaded files</h2>
+          <div class="side-controls">
+            <label class="check"><input type="checkbox" id="selectAll"><span>All</span></label>
+            <button class="btn btn-tiny" id="btnProcessAll">Reprocess</button>
+            <button class="btn btn-tiny" id="btnClearAll">Clear</button>
+          </div>
+          <ul id="fileList" class="file-list" aria-live="polite"></ul>
+        </div>
+      </aside>
+
+      <!-- CENTER -->
+      <div class="workspace">
+        <div id="dropZone" class="dropzone dropzone-app">
+          <svg class="dz-icon" aria-hidden="true"><use href="#i-upload"/></svg>
+          <p class="dz-title">Drop files here</p>
+          <p class="dz-sub">or <button class="link" id="btnBrowse">browse files</button></p>
+          <p class="dz-hint">PDF · DOCX · XLSX · PPTX · TXT · CSV · JSON · MD · JPG · PNG · WEBP · GIF</p>
+        </div>
+
+        <div id="views" class="views hidden">
+
+          <!-- EDITOR -->
+          <section id="viewEditor" class="view">
+            <div class="view-toolbar">
+              <div class="searchbox">
+                <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
+                <input id="quickSearch" type="search" placeholder="Search in documents…" aria-label="Search in documents">
+                <span id="quickCounter" class="search-counter">0 results</span>
+                <button class="btn btn-tiny" id="qPrev" aria-label="Previous result">‹</button>
+                <button class="btn btn-tiny" id="qNext" aria-label="Next result">›</button>
+                <button class="btn btn-tiny" id="qClear" aria-label="Clear search">×</button>
+              </div>
+            </div>
+
+            <div class="editor-toolbar">
+              <div class="tool-group" role="group" aria-label="Edit">
+                <button class="btn btn-tiny" id="btnUndo" title="Undo"><svg class="icon" aria-hidden="true"><use href="#i-undo"/></svg></button>
+                <button class="btn btn-tiny" id="btnRedo" title="Redo"><svg class="icon" aria-hidden="true"><use href="#i-redo"/></svg></button>
+                <button class="btn btn-tiny" id="btnCopy" title="Copy"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg></button>
+                <button class="btn btn-tiny" id="btnCut" title="Cut"><svg class="icon" aria-hidden="true"><use href="#i-scissors"/></svg></button>
+                <button class="btn btn-tiny" id="btnPaste" title="Paste"><svg class="icon" aria-hidden="true"><use href="#i-clipboard"/></svg></button>
+              </div>
+              <div class="tool-group" role="group" aria-label="View">
+                <button class="btn btn-tiny" id="btnWrap" title="Word wrap">Wrap</button>
+                <button class="btn btn-tiny active" id="btnLines" title="Line numbers">Lines</button>
+              </div>
+              <div class="tool-group" role="group" aria-label="Text direction">
+                <button class="btn btn-tiny active" id="btnLtr" title="Left to right"><svg class="icon" aria-hidden="true"><use href="#i-align-left"/></svg></button>
+                <button class="btn btn-tiny" id="btnRtl" title="Right to left"><svg class="icon" aria-hidden="true"><use href="#i-align-right"/></svg></button>
+                <button class="btn btn-tiny" id="btnReverse" title="Reverse text"><svg class="icon" aria-hidden="true"><use href="#i-reverse"/></svg></button>
+                <button class="btn btn-tiny" id="btnReverseWords" title="Reverse word order"><svg class="icon" aria-hidden="true"><use href="#i-swap"/></svg></button>
+                <button class="btn btn-tiny" id="btnRestore" title="Restore original text">Restore</button>
+              </div>
+            </div>
+
+            <div class="editor" id="editorWrap">
+              <div class="gutter" id="gutter" aria-hidden="true"><div id="gutterInner"></div></div>
+              <div class="editor-body">
+                <div class="highlight" id="highlight" aria-hidden="true"></div>
+                <textarea id="editor" spellcheck="false" wrap="off" dir="ltr" placeholder="Extracted text will appear here…" aria-label="Extracted text editor"></textarea>
+              </div>
+            </div>
+          </section>
+
+          <!-- OVERVIEW -->
+          <section id="viewOverview" class="view hidden">
+            <div class="view-head">
+              <h2 class="view-title">Overview</h2>
+              <div class="scope-switch" data-scope="dash"></div>
+            </div>
+            <div id="dashGrid" class="dash-grid"></div>
+            <div class="chart-row">
+              <div class="chart-card"><h3>Top words</h3><canvas id="chartTopWords" height="220"></canvas></div>
+              <div class="chart-card"><h3>File types</h3><canvas id="chartFileTypes" height="220"></canvas></div>
+            </div>
+          </section>
+
+          <!-- REPLACE -->
+          <section id="viewReplace" class="view hidden">
+            <div class="view-head">
+              <h2 class="view-title">Find &amp; replace</h2>
+              <div class="scope-switch" data-scope="replace"></div>
+            </div>
+            <div class="panel">
+              <label for="frFind">Find</label>
+              <input id="frFind" type="text" placeholder="Text to find">
+              <label for="frReplace">Replace with</label>
+              <input id="frReplace" type="text" placeholder="Replacement text">
+              <div class="check-row">
+                <label class="check"><input type="checkbox" id="frCase"><span>Case sensitive</span></label>
+                <label class="check"><input type="checkbox" id="frWord"><span>Whole word</span></label>
+                <label class="check"><input type="checkbox" id="frRegex"><span>Regular expression</span></label>
+              </div>
+              <div class="btn-row">
+                <button class="btn" id="frFindBtn">Find</button>
+                <button class="btn" id="frReplaceOne">Replace current</button>
+                <button class="btn btn-primary" id="frReplaceAll">Replace all</button>
+                <button class="btn" id="frUndo">Undo replacement</button>
+              </div>
+              <p class="status-line" id="frStatus"></p>
+            </div>
+          </section>
+
+          <!-- FREQUENCY -->
+          <section id="viewFrequency" class="view hidden">
+            <div class="view-head">
+              <h2 class="view-title">Word frequency</h2>
+              <div class="view-tools">
+                <label class="check"><input type="checkbox" id="ignoreCommon" checked><span>Ignore common words</span></label>
+                <select id="freqTop" aria-label="Number of words">
+                  <option value="10">Top 10</option>
+                  <option value="25" selected>Top 25</option>
+                  <option value="50">Top 50</option>
+                  <option value="100">Top 100</option>
+                  <option value="all">All</option>
+                </select>
+              </div>
+            </div>
+            <div id="wordCloud" class="word-cloud"></div>
+            <div class="panel table-wrap">
+              <table class="data-table" id="freqTable">
+                <thead><tr><th>Rank</th><th>Word</th><th>Count</th><th>Percent</th><th></th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- ALL WORDS -->
+          <section id="viewAllWords" class="view hidden">
+            <div class="view-head">
+              <h2 class="view-title">All words</h2>
+              <div class="view-tools">
+                <input id="allWordsSearch" type="search" placeholder="Filter…" aria-label="Filter word list">
+                <select id="allWordsSort" aria-label="Sort">
+                  <option value="az">A–Z</option>
+                  <option value="za">Z–A</option>
+                  <option value="desc">Most frequent</option>
+                  <option value="asc">Least frequent</option>
+                </select>
+              </div>
+            </div>
+            <div id="allWordsList" class="chip-cloud"></div>
+          </section>
+
+          <!-- LETTERS -->
+          <section id="viewLetters" class="view hidden">
+            <div class="view-head"><h2 class="view-title">Letter frequency</h2></div>
+            <div class="panel">
+              <div id="letterSummary" class="summary"></div>
+              <div id="letterChart" class="letter-chart"></div>
+              <div class="table-wrap">
+                <table class="data-table" id="letterTable">
+                  <thead><tr><th>Letter</th><th>Count</th><th>Percent</th><th></th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- SENTENCES -->
+          <section id="viewSentences" class="view hidden">
+            <div class="view-head">
+              <h2 class="view-title">Sentences</h2>
+              <div class="view-tools">
+                <select id="sentSort" aria-label="Sort sentences">
+                  <option value="orig">Original order</option>
+                  <option value="long">Longest</option>
+                  <option value="short">Shortest</option>
+                  <option value="most">Most words</option>
+                  <option value="few">Fewest words</option>
+                </select>
+              </div>
+            </div>
+            <div class="panel">
+              <p id="sentTotal" class="summary"></p>
+              <ol id="sentList" class="sent-list"></ol>
+            </div>
+          </section>
+
+          <!-- CHARACTERS -->
+          <section id="viewCharacters" class="view hidden">
+            <div class="view-head"><h2 class="view-title">Characters</h2></div>
+            <div class="panel"><div id="charGrid" class="char-grid"></div></div>
+          </section>
+
+          <!-- PER FILE -->
+          <section id="viewPerFile" class="view hidden">
+            <div class="view-head"><h2 class="view-title">Per-file statistics</h2></div>
+            <div class="panel table-wrap">
+              <table class="data-table" id="perFileTable">
+                <thead><tr><th>File</th><th>Type</th><th>Words</th><th>Letters</th><th>Sentences</th><th>Characters</th></tr></thead>
+                <tbody></tbody>
+              </table>
+              <div id="perFileTotal" class="total-row"></div>
+            </div>
+          </section>
+
         </div>
       </div>
-      <ul id="fileList" class="file-list"></ul>
-    </div>
-  </aside>
 
-  <!-- CENTER -->
-  <main class="center glass" id="centerPane">
-
-    <div id="dropZone" class="drop-zone">
-      <div class="dz-3d" aria-hidden="true">
-        <div class="dz-cube">
-          <span class="f f1"></span><span class="f f2"></span><span class="f f3"></span>
-          <span class="f f4"></span><span class="f f5"></span><span class="f f6"></span>
+      <!-- RIGHT SIDEBAR -->
+      <aside class="sidebar sidebar-right" id="sidebarRight">
+        <div class="side-block">
+          <h2 class="side-title">Live statistics</h2>
+          <div id="liveStats" class="stat-list"></div>
         </div>
-      </div>
-      <div class="dz-title">Drop files here</div>
-      <div class="dz-sub">or</div>
-      <button class="btn btn-primary" id="btnBrowse" type="button">Browse Files</button>
-      <div class="dz-hint">PDF · DOCX · XLSX · PPTX · TXT · CSV · MD · JSON · JPG · PNG · WEBP · GIF</div>
-      <input type="file" id="fileInput" multiple hidden
-             accept=".pdf,.docx,.xlsx,.xls,.pptx,.txt,.csv,.md,.json,.log,.html,.htm,.xml,.jpg,.jpeg,.png,.webp,.gif">
-    </div>
 
-    <div id="viewsContainer" class="views-container hidden">
+        <div class="side-block">
+          <h2 class="side-title">Search results</h2>
+          <p id="resultsMeta" class="meta">No search yet.</p>
+          <ul id="resultsList" class="results-list"></ul>
+        </div>
 
-      <!-- EDITOR -->
-      <section id="viewEditor" class="view">
-        <div class="viewer-toolbar">
-          <div class="search-bar">
-            <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></svg>
-            <input type="text" id="quickSearch" placeholder="Search in documents…">
-            <span class="match-counter" id="quickCounter">0 results</span>
-            <button class="tool-btn" id="qPrev" title="Previous">&#8249;</button>
-            <button class="tool-btn" id="qNext" title="Next">&#8250;</button>
-            <button class="tool-btn" id="qClear" title="Clear">&#10005;</button>
-          </div>
-          <div class="toolbar-tools">
-            <button class="tool-btn" id="btnUndo">Undo</button>
-            <button class="tool-btn" id="btnRedo">Redo</button>
-            <button class="tool-btn" id="btnCopy">Copy</button>
-            <button class="tool-btn" id="btnCut">Cut</button>
-            <button class="tool-btn" id="btnPaste">Paste</button>
-            <button class="tool-btn" id="btnSelectAll">All</button>
-            <button class="tool-btn" id="btnClearText">Clear</button>
-            <button class="tool-btn" id="btnWrap">Wrap</button>
-            <button class="tool-btn active" id="btnLines">Lines</button>
-            <button class="tool-btn active" id="btnHighlightAll">Highlight</button>
+        <div class="side-block">
+          <h2 class="side-title">Export</h2>
+          <div class="export-grid">
+            <button class="btn btn-tiny" data-export="txt">Extracted text · TXT</button>
+            <button class="btn btn-tiny" data-export="edited">Edited text · TXT</button>
+            <button class="btn btn-tiny" data-export="freq">Word frequency · CSV</button>
+            <button class="btn btn-tiny" data-export="stats">Statistics · CSV</button>
+            <button class="btn btn-tiny" data-export="results">Search results · CSV</button>
+            <button class="btn btn-tiny" data-export="words">All words · CSV</button>
+            <button class="btn btn-tiny" data-export="sentences">Sentences · CSV</button>
+            <button class="btn btn-tiny" data-export="report">Analysis report · TXT</button>
+            <button class="btn btn-tiny btn-primary" data-export="pdf">Generate PDF</button>
           </div>
         </div>
 
-        <div class="editor-wrap" id="editorWrap">
-          <div class="line-numbers" id="lineNumbers"><div id="lineNumbersInner"></div></div>
-          <div class="editor-scroll" id="editorScroll">
-            <div class="highlight-layer" id="highlightLayer"></div>
-            <textarea id="editor" spellcheck="false" wrap="off" placeholder="Extracted text will appear here…"></textarea>
-          </div>
-        </div>
-      </section>
-
-      <!-- OVERVIEW -->
-      <section id="viewOverview" class="view hidden">
-        <div class="view-head">
-          <h2 class="view-title">Statistics Dashboard</h2>
-          <div class="scope-switch" data-scope="dash"></div>
-        </div>
-        <div class="dash-grid" id="dashGrid"></div>
-        <div class="chart-row">
-          <div class="chart-card glass tilt">
-            <h3>Top Words</h3>
-            <canvas id="chartTopWords" height="210"></canvas>
-          </div>
-          <div class="chart-card glass tilt">
-            <h3>File Types</h3>
-            <canvas id="chartFileTypes" height="210"></canvas>
-          </div>
-        </div>
-      </section>
-
-      <!-- FIND & REPLACE -->
-      <section id="viewReplace" class="view hidden">
-        <div class="view-head">
-          <h2 class="view-title">Find &amp; Replace</h2>
-          <div class="scope-switch" data-scope="replace"></div>
-        </div>
-        <div class="panel-card glass">
-          <div class="field-row"><label>Find</label><input type="text" id="frFind" placeholder="Text to find"></div>
-          <div class="field-row"><label>Replace with</label><input type="text" id="frReplace" placeholder="Replacement text"></div>
-          <div class="opt-row">
-            <label class="mini-check"><input type="checkbox" id="frCase"><span>Case sensitive</span></label>
-            <label class="mini-check"><input type="checkbox" id="frWord"><span>Whole word</span></label>
-            <label class="mini-check"><input type="checkbox" id="frRegex"><span>Regular expression</span></label>
-          </div>
+        <div class="side-block">
+          <h2 class="side-title">Debug</h2>
           <div class="btn-row">
-            <button class="btn" id="frFindBtn">Find</button>
-            <button class="btn" id="frReplaceOne">Replace Current</button>
-            <button class="btn btn-primary" id="frReplaceAll">Replace All</button>
-            <button class="btn" id="frUndo">Undo Replacement</button>
+            <button class="btn btn-tiny" id="btnSelfTest">Self-test</button>
+            <button class="btn btn-tiny" id="btnDebug">Toggle log</button>
           </div>
-          <div class="fr-status" id="frStatus"></div>
+          <pre id="debugLog" class="debug-log" aria-live="polite"></pre>
         </div>
-      </section>
-
-      <!-- WORD FREQUENCY -->
-      <section id="viewFrequency" class="view hidden">
-        <div class="view-head">
-          <h2 class="view-title">Most Frequent Words</h2>
-          <div class="view-tools">
-            <label class="mini-check"><input type="checkbox" id="ignoreCommon" checked><span>Ignore common words</span></label>
-            <select id="freqTop">
-              <option value="10">Top 10</option>
-              <option value="25" selected>Top 25</option>
-              <option value="50">Top 50</option>
-              <option value="100">Top 100</option>
-              <option value="all">All words</option>
-            </select>
-          </div>
-        </div>
-        <div id="wordCloud3D" class="word-cloud-3d" aria-label="Word cloud"></div>
-        <div class="panel-card glass">
-          <table class="data-table" id="freqTable">
-            <thead><tr><th>Rank</th><th>Word</th><th>Count</th><th>Percentage</th><th></th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- ALL WORDS -->
-      <section id="viewAllWords" class="view hidden">
-        <div class="view-head">
-          <h2 class="view-title">All Words</h2>
-          <div class="view-tools">
-            <input type="text" id="allWordsSearch" placeholder="Search word list…">
-            <select id="allWordsSort">
-              <option value="az">Alphabetical A-Z</option>
-              <option value="za">Alphabetical Z-A</option>
-              <option value="desc">Most frequent</option>
-              <option value="asc">Least frequent</option>
-            </select>
-          </div>
-        </div>
-        <div class="panel-card glass words-cloud" id="allWordsList"></div>
-      </section>
-
-      <!-- LETTER FREQUENCY -->
-      <section id="viewLetters" class="view hidden">
-        <div class="view-head"><h2 class="view-title">Letter Frequency</h2></div>
-        <div class="panel-card glass">
-          <div class="letter-summary" id="letterSummary"></div>
-          <canvas id="letterDonut" height="230"></canvas>
-          <div id="letterChart" class="letter-chart"></div>
-          <table class="data-table" id="letterTable">
-            <thead><tr><th>Letter</th><th>Count</th><th>Percentage</th><th>Bar</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- SENTENCES -->
-      <section id="viewSentences" class="view hidden">
-        <div class="view-head">
-          <h2 class="view-title">Sentence Analyzer</h2>
-          <div class="view-tools">
-            <select id="sentSort">
-              <option value="orig">Original order</option>
-              <option value="long">Longest first</option>
-              <option value="short">Shortest first</option>
-              <option value="most">Most words</option>
-              <option value="few">Fewest words</option>
-            </select>
-          </div>
-        </div>
-        <div class="panel-card glass">
-          <div class="sent-total" id="sentTotal"></div>
-          <ol id="sentList" class="sent-list"></ol>
-        </div>
-      </section>
-
-      <!-- CHARACTERS -->
-      <section id="viewCharacters" class="view hidden">
-        <div class="view-head"><h2 class="view-title">Character Analyzer</h2></div>
-        <div class="panel-card glass">
-          <div class="char-grid" id="charGrid"></div>
-        </div>
-      </section>
-
-      <!-- PER FILE -->
-      <section id="viewPerFile" class="view hidden">
-        <div class="view-head"><h2 class="view-title">File-by-File Analysis</h2></div>
-        <div class="panel-card glass">
-          <table class="data-table" id="perFileTable">
-            <thead><tr><th>File</th><th>Type</th><th>Words</th><th>Letters</th><th>Sentences</th><th>Characters</th></tr></thead>
-            <tbody></tbody>
-          </table>
-          <div class="total-row" id="perFileTotal"></div>
-        </div>
-      </section>
-
+      </aside>
     </div>
-  </main>
+  </section>
+</main>
 
-  <!-- RIGHT SIDEBAR -->
-  <aside class="sidebar right glass" id="rightSidebar">
-    <div class="side-section">
-      <div class="side-title">Live Statistics</div>
-      <div class="stat-list" id="liveStats"></div>
+<!-- ============ FOOTER ============ -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-col">
+      <span class="footer-brand">WordAnalyzer</span>
+      <p>Local text analysis for every script.</p>
     </div>
-
-    <div class="side-section">
-      <div class="side-title">Search Results</div>
-      <div class="results-meta" id="resultsMeta">No search yet.</div>
-      <ul class="results-list" id="resultsList"></ul>
+    <div class="footer-col">
+      <h4>Product</h4>
+      <button class="footer-link" data-nav="home">Home</button>
+      <button class="footer-link" data-nav="features">Features</button>
+      <button class="footer-link" data-nav="app">Analyzer</button>
     </div>
-
-    <div class="side-section">
-      <div class="side-title">Export</div>
-      <div class="export-grid">
-        <button class="btn small" data-export="txt">Extracted Text (TXT)</button>
-        <button class="btn small" data-export="edited">Edited Text (TXT)</button>
-        <button class="btn small" data-export="freq">Word Frequency (CSV)</button>
-        <button class="btn small" data-export="stats">Statistics (CSV)</button>
-        <button class="btn small" data-export="results">Search Results (CSV)</button>
-        <button class="btn small" data-export="words">All Words (CSV)</button>
-        <button class="btn small" data-export="sentences">Sentences (CSV)</button>
-        <button class="btn small" data-export="report">Analysis Report (TXT)</button>
-        <button class="btn small btn-primary" data-export="pdf">Generate New PDF</button>
-      </div>
+    <div class="footer-col">
+      <h4>Resources</h4>
+      <button class="footer-link" data-nav="privacy">Privacy</button>
+      <button class="footer-link" data-nav="contact">Contact</button>
+      <a class="footer-link" href="https://github.com/nowspare/WordAnalyzer" target="_blank" rel="noopener">GitHub</a>
     </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© <span id="year"></span> WordAnalyzer. Open source under the MIT licence.</span>
+    <span>Files processed locally. No server.</span>
+  </div>
+</footer>
 
-    <div class="side-section">
-      <div class="side-title">Debug</div>
-      <button class="btn small" id="btnSelfTest">Run Self-Test</button>
-      <button class="btn small" id="btnDebug">Toggle Log</button>
-      <div id="debugLog" class="debug-log"></div>
-    </div>
-
-    <div class="side-section">
-      <div class="side-title">Privacy</div>
-      <p class="privacy-note">Your files are processed locally in your browser and are not uploaded to a server.</p>
-    </div>
-  </aside>
-</div>
-
-<footer class="status-bar glass" id="statusBar">0 files • 0 words • 0 letters • 0 sentences</footer>
-
-<!-- CONFIRM MODAL -->
-<div class="modal-backdrop hidden" id="modalBackdrop">
-  <div class="modal glass">
-    <h3 id="modalTitle">Confirm</h3>
-    <p id="modalText"></p>
+<!-- ============ MODALS ============ -->
+<div class="modal-backdrop hidden" id="confirmBackdrop" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="modal">
+    <h3 id="confirmTitle">Confirm</h3>
+    <p id="confirmText"></p>
     <div class="modal-actions">
-      <button class="btn" id="modalCancel">Cancel</button>
-      <button class="btn btn-primary" id="modalOk">Confirm</button>
+      <button class="btn" id="confirmCancel">Cancel</button>
+      <button class="btn btn-primary" id="confirmOk">Confirm</button>
     </div>
   </div>
 </div>
 
-<!-- SETTINGS MODAL -->
-<div class="modal-backdrop hidden" id="settingsBackdrop">
-  <div class="modal glass settings-modal">
-    <h3>Settings</h3>
+<div class="modal-backdrop hidden" id="settingsBackdrop" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+  <div class="modal">
+    <h3 id="settingsTitle">Settings</h3>
     <div class="settings-row">
       <span>Theme</span>
       <div class="seg" id="setTheme">
-        <button data-val="dark">Dark</button>
-        <button data-val="light">Light</button>
+        <button data-val="dark">Black</button>
+        <button data-val="light">White</button>
       </div>
     </div>
     <div class="settings-row">
@@ -388,16 +601,15 @@
       </div>
     </div>
     <div class="settings-row">
-      <span>Particle density</span>
-      <div class="seg" id="setParticles">
-        <button data-val="low">Low</button>
-        <button data-val="medium">Medium</button>
-        <button data-val="high">High</button>
+      <span>Default text direction</span>
+      <div class="seg" id="setDir">
+        <button data-val="ltr">LTR</button>
+        <button data-val="rtl">RTL</button>
       </div>
     </div>
     <div class="settings-row">
-      <span>Reset all data</span>
-      <button class="btn small" id="setReset">Reset</button>
+      <span>Reset preferences</span>
+      <button class="btn btn-tiny" id="setReset">Reset</button>
     </div>
     <div class="modal-actions">
       <button class="btn btn-primary" id="settingsClose">Done</button>
@@ -405,15 +617,13 @@
   </div>
 </div>
 
-<div id="toasts" class="toasts"></div>
+<div id="toasts" class="toasts" aria-live="polite"></div>
 
-<!-- MODULES (order matters) -->
-<script src="js/utilities.js"></script>
-<script src="js/three-scene.js"></script>
-<script src="js/upload-manager.js"></script>
-<script src="js/dashboard.js"></script>
-<script src="js/animations.js"></script>
-<!-- MAIN APP CORE -->
-<script src="script.js"></script>
+<!-- ============ SCRIPTS ============ -->
+<script src="js/core.js" defer></script>
+<script src="js/upload.js" defer></script>
+<script src="js/analyzer.js" defer></script>
+<script src="js/ui.js" defer></script>
+<script src="js/main.js" defer></script>
 </body>
 </html>
